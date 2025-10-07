@@ -57,6 +57,12 @@ const Transactions = () => {
     fetchData();
   }, [filterType]);
 
+  useEffect(() => {
+    if (accounts.length > 0 && !form.bank_account_id) {
+      setForm((prev) => ({ ...prev, bank_account_id: accounts[0].id }));
+    }
+  }, [accounts]);
+
   const fetchData = async () => {
     try {
       const [transactionRes, accountRes] = await Promise.all([
@@ -64,17 +70,14 @@ const Transactions = () => {
         accountApi.getAccounts(),
       ]);
 
-      if (transactionRes.success) {
+      if (transactionRes.success && transactionRes.data) {
         const data = transactionRes.data as any;
         setTransactions(data?.transactions || []);
       }
 
-      if (accountRes.success) {
+      if (accountRes.success && accountRes.data) {
         const accountData = (accountRes.data as Account[]) || [];
         setAccounts(accountData);
-        if (accountData.length > 0 && !form.bank_account_id) {
-          setForm((prev) => ({ ...prev, bank_account_id: accountData[0].id }));
-        }
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);

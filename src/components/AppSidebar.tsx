@@ -76,10 +76,9 @@ export function AppSidebar() {
           <p className="text-xs text-sidebar-foreground/70">{authData?.user.email}</p>
         </div>
         <Button
-          variant="outline"
           size="sm"
           onClick={logout}
-          className="w-full border-sidebar-border hover:bg-sidebar-accent"
+          className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground"
         >
           <LogOut className="mr-2 h-4 w-4" />
           Logout

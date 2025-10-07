@@ -72,24 +72,28 @@ const Dashboard = () => {
     e.preventDefault();
     if (!query.trim()) return;
 
+    // First, show account selection dialog
     setIsProcessing(true);
     try {
-      const response = await transactionApi.createWithQuery(query, selectedAccountId);
-
-      if (response.success) {
+      // Call API without bank_account_id to get preview
+      const response = await transactionApi.createWithQuery(query);
+      
+      if (response.status_code === 200 && response.meta?.requires === 'bank_account_id') {
+        // Show preview and ask for account
+        setPreviewData(response.data);
         toast({
-          title: 'Transaction created',
-          description: response.message,
+          title: 'Select Account',
+          description: response.message || 'Please select an account to complete the transaction',
+        });
+      } else if (response.success) {
+        // Transaction created successfully
+        toast({
+          title: 'Success',
+          description: response.message || 'Transaction created successfully',
         });
         setQuery('');
         setPreviewData(null);
         fetchData();
-      } else if (response.meta?.requires === 'bank_account_id') {
-        setPreviewData(response.data);
-        toast({
-          title: 'Select account',
-          description: response.message,
-        });
       }
     } catch (error) {
       toast({
