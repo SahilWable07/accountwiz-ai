@@ -57,14 +57,19 @@ const Dashboard = () => {
       }
 
       if (accountsRes.success && accountsRes.data) {
-        const accountData = accountsRes.data as Account[];
+        const accountData = Array.isArray(accountsRes.data) ? accountsRes.data : [];
         setAccounts(accountData);
-        if (accountData.length > 0) {
+        if (accountData.length > 0 && !selectedAccountId) {
           setSelectedAccountId(accountData[0].id);
         }
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load dashboard data',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -72,28 +77,49 @@ const Dashboard = () => {
     e.preventDefault();
     if (!query.trim()) return;
 
-    // First, show account selection dialog
     setIsProcessing(true);
     try {
-      // Call API without bank_account_id to get preview
-      const response = await transactionApi.createWithQuery(query);
-      
-      if (response.status_code === 200 && response.meta?.requires === 'bank_account_id') {
-        // Show preview and ask for account
-        setPreviewData(response.data);
-        toast({
-          title: 'Select Account',
-          description: response.message || 'Please select an account to complete the transaction',
-        });
-      } else if (response.success) {
-        // Transaction created successfully
-        toast({
-          title: 'Success',
-          description: response.message || 'Transaction created successfully',
-        });
-        setQuery('');
-        setPreviewData(null);
-        fetchData();
+      // Check if query mentions "cash" or specific bank name
+      const queryLower = query.toLowerCase();
+      const mentionsCash = queryLower.includes('cash');
+      const mentionedAccount = accounts.find(acc => 
+        queryLower.includes(acc.account_name.toLowerCase()) || 
+        (acc.bank_name && queryLower.includes(acc.bank_name.toLowerCase()))
+      );
+
+      let accountToUse = mentionsCash 
+        ? accounts.find(acc => acc.account_type === 'cash')?.id
+        : mentionedAccount?.id;
+
+      if (accountToUse) {
+        // Direct execution if account mentioned
+        const response = await transactionApi.createWithQuery(query, accountToUse);
+        if (response.success) {
+          toast({
+            title: 'Success',
+            description: response.message || 'Transaction created successfully',
+          });
+          setQuery('');
+          fetchData();
+        }
+      } else {
+        // Ask for account selection
+        const response = await transactionApi.createWithQuery(query);
+        
+        if (response.status_code === 200 && response.meta?.requires === 'bank_account_id') {
+          setPreviewData(response.data);
+          toast({
+            title: 'Select Account',
+            description: response.message || 'Please select an account to complete the transaction',
+          });
+        } else if (response.success) {
+          toast({
+            title: 'Success',
+            description: response.message || 'Transaction created successfully',
+          });
+          setQuery('');
+          fetchData();
+        }
       }
     } catch (error) {
       toast({

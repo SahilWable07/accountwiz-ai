@@ -54,6 +54,34 @@ export const authApi = {
 
     return response.json();
   },
+
+  requestOtp: async (phone: string) => {
+    const response = await fetch(`${AUTH_API_URL}/request-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to send OTP');
+    }
+
+    return response.json();
+  },
+
+  verifyOtp: async (phone: string, otp: string) => {
+    const response = await fetch(`${AUTH_API_URL}/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, otp }),
+    });
+
+    if (!response.ok) {
+      throw new Error('OTP verification failed');
+    }
+
+    return response.json();
+  },
 };
 
 // Account APIs

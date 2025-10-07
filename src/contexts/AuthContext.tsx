@@ -7,6 +7,7 @@ import { toast } from '@/hooks/use-toast';
 interface AuthContextType {
   authData: AuthData | null;
   login: (email: string, password: string) => Promise<void>;
+  loginWithOtp: (phone: string, otp: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -62,6 +63,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const loginWithOtp = async (phone: string, otp: string) => {
+    try {
+      const response = await authApi.verifyOtp(phone, otp);
+      const decoded = decodeJWT(response.access_token);
+      
+      if (!decoded) {
+        throw new Error('Invalid token');
+      }
+
+      const authData: AuthData = {
+        accessToken: response.access_token,
+        refreshToken: response.refresh_token,
+        userId: response.user.id,
+        clientId: decoded.client_ids,
+        user: response.user,
+      };
+
+      saveAuthData(authData);
+      setAuthData(authData);
+      
+      toast({
+        title: 'Login successful',
+        description: `Welcome back, ${response.user.first_name}!`,
+      });
+      
+      navigate('/dashboard');
+    } catch (error) {
+      toast({
+        title: 'Login failed',
+        description: error instanceof Error ? error.message : 'Please check your OTP',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
   const logout = () => {
     clearAuthData();
     setAuthData(null);
@@ -73,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ authData, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ authData, login, loginWithOtp, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
