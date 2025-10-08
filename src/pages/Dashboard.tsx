@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { transactionApi, accountApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
-import { TrendingUp, TrendingDown, Wallet, Send, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, Send, ArrowUpRight, ArrowDownRight, Download, Receipt } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -30,6 +30,15 @@ interface Account {
   bank_name?: string;
 }
 
+interface Transaction {
+  id: string;
+  type: string;
+  amount: number;
+  description: string;
+  created_at: string;
+  bank_account_id: string;
+}
+
 const Dashboard = () => {
   const [query, setQuery] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -37,16 +46,19 @@ const Dashboard = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string>('');
   const [previewData, setPreviewData] = useState<any>(null);
+  const [latestTransactions, setLatestTransactions] = useState<Transaction[]>([]);
+  const [filterType, setFilterType] = useState('today');
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [filterType]);
 
   const fetchData = async () => {
     try {
-      const [balanceRes, accountsRes] = await Promise.all([
+      const [balanceRes, accountsRes, transactionsRes] = await Promise.all([
         transactionApi.getTotalBalance('this_month'),
         accountApi.getAccounts(),
+        transactionApi.getHistory(filterType),
       ]);
 
       if (balanceRes.success && balanceRes.data) {
@@ -62,6 +74,16 @@ const Dashboard = () => {
         if (accountData.length > 0 && !selectedAccountId) {
           setSelectedAccountId(accountData[0].id);
         }
+      }
+
+      if (transactionsRes.success && transactionsRes.data) {
+        const data = transactionsRes.data as any;
+        const txns = data?.transactions || [];
+        // Sort by created_at descending (latest first) and take top 5
+        const sorted = [...txns].sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setLatestTransactions(sorted.slice(0, 5));
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -79,7 +101,6 @@ const Dashboard = () => {
 
     setIsProcessing(true);
     try {
-      // Check if query mentions "cash" or specific bank name
       const queryLower = query.toLowerCase();
       const mentionsCash = queryLower.includes('cash');
       const mentionedAccount = accounts.find(acc => 
@@ -92,7 +113,6 @@ const Dashboard = () => {
         : mentionedAccount?.id;
 
       if (accountToUse) {
-        // Direct execution if account mentioned
         const response = await transactionApi.createWithQuery(query, accountToUse);
         if (response.success) {
           toast({
@@ -103,14 +123,13 @@ const Dashboard = () => {
           fetchData();
         }
       } else {
-        // Ask for account selection
         const response = await transactionApi.createWithQuery(query);
         
         if (response.status_code === 200 && response.meta?.requires === 'bank_account_id') {
           setPreviewData(response.data);
           toast({
-            title: 'Select Account',
-            description: response.message || 'Please select an account to complete the transaction',
+            title: 'Select Account/Bank',
+            description: 'Please select the account or bank to complete the transaction',
           });
         } else if (response.success) {
           toast({
@@ -166,8 +185,34 @@ const Dashboard = () => {
     }
   };
 
+  const handleDownloadStatement = async () => {
+    try {
+      await transactionApi.downloadStatement(filterType);
+      toast({
+        title: 'Success',
+        description: 'Statement downloaded successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to download statement',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const getTypeBadge = (type: string) => {
+    const styles: Record<string, string> = {
+      income: 'bg-accent/20 text-accent',
+      expense: 'bg-destructive/20 text-destructive',
+      loan_payable: 'bg-warning/20 text-warning',
+      loan_receivable: 'bg-info/20 text-info',
+    };
+    return <Badge className={styles[type] || ''}>{type}</Badge>;
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground">Overview of your financial activity</p>
@@ -175,7 +220,7 @@ const Dashboard = () => {
 
       {/* Balance Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-l-4 border-l-accent">
+        <Card className="border-l-4 border-l-accent hover:shadow-lg transition-shadow animate-scale-in">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Income</CardTitle>
             <TrendingUp className="h-4 w-4 text-accent" />
@@ -186,7 +231,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-destructive">
+        <Card className="border-l-4 border-l-destructive hover:shadow-lg transition-shadow animate-scale-in" style={{ animationDelay: '0.1s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
             <TrendingDown className="h-4 w-4 text-destructive" />
@@ -197,7 +242,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-warning">
+        <Card className="border-l-4 border-l-warning hover:shadow-lg transition-shadow animate-scale-in" style={{ animationDelay: '0.2s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Loan Payable</CardTitle>
             <ArrowDownRight className="h-4 w-4 text-warning" />
@@ -208,7 +253,7 @@ const Dashboard = () => {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-info">
+        <Card className="border-l-4 border-l-info hover:shadow-lg transition-shadow animate-scale-in" style={{ animationDelay: '0.3s' }}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Loan Receivable</CardTitle>
             <ArrowUpRight className="h-4 w-4 text-info" />
@@ -221,14 +266,14 @@ const Dashboard = () => {
       </div>
 
       {/* Natural Language Input */}
-      <Card className="shadow-lg">
+      <Card className="shadow-lg animate-fade-in">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Send className="h-5 w-5 text-primary" />
             Quick Transaction
           </CardTitle>
           <CardDescription>
-            Add a transaction using natural language, e.g., "Add expense of ₹500 for groceries"
+            Add a transaction using natural language, e.g., "Add expense of ₹500 for groceries from HDFC"
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -245,12 +290,12 @@ const Dashboard = () => {
           </form>
 
           {previewData && (
-            <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-3">
+            <div className="rounded-lg border border-border bg-muted/50 p-4 space-y-3 animate-scale-in">
               <h4 className="font-semibold">Transaction Preview</h4>
               <div className="grid gap-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Type:</span>
-                  <Badge>{previewData.type}</Badge>
+                  {getTypeBadge(previewData.type)}
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Amount:</span>
@@ -262,7 +307,7 @@ const Dashboard = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Select Account</label>
+                <label className="text-sm font-medium">Select Account/Bank</label>
                 <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select account" />
@@ -270,7 +315,7 @@ const Dashboard = () => {
                   <SelectContent>
                     {accounts.map((account) => (
                       <SelectItem key={account.id} value={account.id}>
-                        {account.account_name} - {account.account_type}
+                        {account.account_name} - {account.bank_name || account.account_type}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -284,8 +329,66 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
+      {/* Latest Transactions */}
+      <Card className="animate-fade-in">
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <CardTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" />
+              Latest Transactions
+            </CardTitle>
+            <div className="flex gap-2 items-center">
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="this_week">This Week</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={handleDownloadStatement}>
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {latestTransactions.map((txn, index) => (
+              <div
+                key={txn.id}
+                className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-all hover:shadow-md animate-scale-in"
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center gap-2">
+                    {getTypeBadge(txn.type)}
+                    <span className="font-medium">{txn.description}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(txn.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <span className={`text-xl font-bold ${txn.type === 'income' || txn.type === 'loan_receivable' ? 'text-accent' : 'text-destructive'}`}>
+                  {txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹{Number(txn.amount).toLocaleString()}
+                </span>
+              </div>
+            ))}
+            {latestTransactions.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                No transactions found for this period
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Accounts Overview */}
-      <Card>
+      <Card className="animate-fade-in">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
@@ -294,10 +397,11 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {accounts.map((account) => (
+            {accounts.map((account, index) => (
               <div
                 key={account.id}
-                className="rounded-lg border border-border bg-card p-4 space-y-2 hover:shadow-md transition-shadow"
+                className="rounded-lg border border-border bg-card p-4 space-y-2 hover:shadow-lg transition-all hover:scale-105 animate-scale-in"
+                style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <div className="flex items-center justify-between">
                   <h4 className="font-medium">{account.account_name}</h4>
@@ -309,6 +413,11 @@ const Dashboard = () => {
                 <p className="text-2xl font-bold">₹{account.balance.toLocaleString()}</p>
               </div>
             ))}
+            {accounts.length === 0 && (
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                No accounts found. Create one to get started.
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { transactionApi, accountApi } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
-import { Plus, Trash2, Edit, Filter } from 'lucide-react';
+import { Plus, Trash2, Edit, Filter, Download } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,7 @@ interface Account {
   id: string;
   account_name: string;
   account_type: string;
+  bank_name?: string;
 }
 
 const Transactions = () => {
@@ -43,7 +44,9 @@ const Transactions = () => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [filterType, setFilterType] = useState('this_month');
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const [form, setForm] = useState({
     bank_account_id: '',
@@ -72,7 +75,12 @@ const Transactions = () => {
 
       if (transactionRes.success && transactionRes.data) {
         const data = transactionRes.data as any;
-        setTransactions(data?.transactions || []);
+        const txns = data?.transactions || [];
+        // Sort by created_at descending (latest first)
+        const sorted = [...txns].sort((a: Transaction, b: Transaction) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setTransactions(sorted);
       }
 
       if (accountRes.success && accountRes.data) {
@@ -108,6 +116,50 @@ const Transactions = () => {
     }
   };
 
+  const handleEdit = (transaction: Transaction) => {
+    setEditingTransaction(transaction);
+    setForm({
+      bank_account_id: transaction.bank_account_id,
+      type: transaction.type,
+      amount: transaction.amount,
+      description: transaction.description,
+      include_gst: false,
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingTransaction) return;
+
+    try {
+      const response = await transactionApi.update(editingTransaction.id, {
+        bank_account_id: form.bank_account_id,
+        type: form.type,
+        amount: form.amount,
+        description: form.description,
+        include_gst: form.include_gst,
+      });
+      
+      if (response.success) {
+        toast({
+          title: 'Success',
+          description: 'Transaction updated successfully',
+        });
+        setShowEditDialog(false);
+        setEditingTransaction(null);
+        setForm({ bank_account_id: accounts[0]?.id || '', type: 'expense', amount: '', description: '', include_gst: false });
+        fetchData();
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to update transaction',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this transaction?')) return;
 
@@ -129,6 +181,22 @@ const Transactions = () => {
     }
   };
 
+  const handleDownloadStatement = async () => {
+    try {
+      await transactionApi.downloadStatement(filterType);
+      toast({
+        title: 'Success',
+        description: 'Statement downloaded successfully',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to download statement',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getTypeBadge = (type: string) => {
     const styles: Record<string, string> = {
       income: 'bg-accent/20 text-accent',
@@ -139,13 +207,18 @@ const Transactions = () => {
     return <Badge className={styles[type] || ''}>{type}</Badge>;
   };
 
+  const getAccountName = (accountId: string) => {
+    const account = accounts.find(acc => acc.id === accountId);
+    return account ? `${account.account_name}${account.bank_name ? ` - ${account.bank_name}` : ''}` : 'Unknown';
+  };
+
   if (isLoading) {
     return <div className="flex justify-center p-8">Loading...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold">Transactions</h1>
           <p className="text-muted-foreground">View and manage your transactions</p>
@@ -172,7 +245,7 @@ const Transactions = () => {
                   <SelectContent>
                     {accounts.map((acc) => (
                       <SelectItem key={acc.id} value={acc.id}>
-                        {acc.account_name} - {acc.account_type}
+                        {acc.account_name} {acc.bank_name ? `- ${acc.bank_name}` : ''} ({acc.account_type})
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -219,46 +292,61 @@ const Transactions = () => {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <CardTitle>Transaction History</CardTitle>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-40">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="yesterday">Yesterday</SelectItem>
-                <SelectItem value="this_week">This Week</SelectItem>
-                <SelectItem value="last_week">Last Week</SelectItem>
-                <SelectItem value="this_month">This Month</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="w-40">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="yesterday">Yesterday</SelectItem>
+                  <SelectItem value="this_week">This Week</SelectItem>
+                  <SelectItem value="last_week">Last Week</SelectItem>
+                  <SelectItem value="this_month">This Month</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={handleDownloadStatement}>
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {transactions.map((txn) => (
+          <div className="space-y-3">
+            {transactions.map((txn, index) => (
               <div
                 key={txn.id}
-                className="flex items-center justify-between rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg border border-border p-4 hover:bg-muted/50 transition-all hover:shadow-md animate-scale-in"
+                style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {getTypeBadge(txn.type)}
                     <span className="font-medium">{txn.description}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     {new Date(txn.created_at).toLocaleString()}
                   </p>
+                  <p className="text-xs text-muted-foreground">
+                    Account: {getAccountName(txn.bank_account_id)}
+                  </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className={`text-2xl font-bold ${txn.type === 'income' ? 'text-accent' : 'text-destructive'}`}>
-                    {txn.type === 'income' ? '+' : '-'}₹{Number(txn.amount).toLocaleString()}
+                  <span className={`text-xl sm:text-2xl font-bold ${txn.type === 'income' || txn.type === 'loan_receivable' ? 'text-accent' : 'text-destructive'}`}>
+                    {txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹{Number(txn.amount).toLocaleString()}
                   </span>
-                  <Button variant="ghost" size="icon" onClick={() => handleDelete(txn.id)}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" onClick={() => handleEdit(txn)}>
+                      <Edit className="h-4 w-4 text-primary" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(txn.id)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -270,6 +358,67 @@ const Transactions = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Transaction</DialogTitle>
+            <DialogDescription>Update transaction details</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdate} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Account</Label>
+              <Select value={form.bank_account_id} onValueChange={(v) => setForm({ ...form, bank_account_id: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.account_name} {acc.bank_name ? `- ${acc.bank_name}` : ''} ({acc.account_type})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="loan_payable">Loan Payable</SelectItem>
+                  <SelectItem value="loan_receivable">Loan Receivable</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Amount</Label>
+              <Input
+                type="number"
+                placeholder="Enter amount"
+                value={form.amount}
+                onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input
+                placeholder="Enter description"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                required
+              />
+            </div>
+            <Button type="submit" className="w-full">Update Transaction</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

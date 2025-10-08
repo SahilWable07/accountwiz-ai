@@ -1,4 +1,4 @@
-import { Home, Wallet, Receipt, BookOpen, Settings, Package, LogOut } from 'lucide-react';
+import { Home, Wallet, Receipt, BookOpen, Settings, Package, LogOut, User } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import {
   Sidebar,
@@ -69,11 +69,16 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-4">
-        <div className="mb-3 rounded-lg bg-sidebar-accent/30 p-3">
-          <p className="text-xs font-medium text-sidebar-foreground">
-            {authData?.user.first_name} {authData?.user.last_name}
-          </p>
-          <p className="text-xs text-sidebar-foreground/70">{authData?.user.email}</p>
+        <div className="mb-3 rounded-lg bg-sidebar-accent/30 p-3 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-full bg-sidebar-primary flex items-center justify-center">
+            <User className="h-5 w-5 text-sidebar-primary-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-sidebar-foreground truncate">
+              {authData?.user.first_name} {authData?.user.last_name}
+            </p>
+            <p className="text-xs text-sidebar-foreground/70 truncate">{authData?.user.email}</p>
+          </div>
         </div>
         <Button
           size="sm"

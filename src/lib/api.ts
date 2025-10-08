@@ -249,6 +249,30 @@ export const transactionApi = {
     return makeRequest(url);
   },
 
+  downloadStatement: async (filter_type: string) => {
+    const authData = getAuthData();
+    const url = `/transactions/download_statement?filter_type=${filter_type}&user_id=${authData?.userId}&client_id=${authData?.clientId}`;
+    const response = await fetch(`${API_BASE_URL}${url}`, {
+      headers: {
+        'Authorization': `Bearer ${authData?.accessToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to download statement');
+    }
+    
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `statement_${filter_type}_${new Date().toISOString().split('T')[0]}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  },
+
   getTotalBalance: async (period: string) => {
     const authData = getAuthData();
     return makeRequest(
