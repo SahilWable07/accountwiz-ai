@@ -84,14 +84,20 @@ const Dashboard = () => {
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
         setLatestTransactions(sorted.slice(0, 5));
+      } else {
+        // If no transactions, set empty array
+        setLatestTransactions([]);
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load dashboard data',
-        variant: 'destructive',
-      });
+      // Don't show error toast if it's just empty data
+      if (error instanceof Error && !error.message.includes('No data found')) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load some dashboard data',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -193,9 +199,10 @@ const Dashboard = () => {
         description: 'Statement downloaded successfully',
       });
     } catch (error) {
+      console.error('Download error:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to download statement',
+        title: 'Download Not Available',
+        description: 'Statement download is currently not available. Please contact support.',
         variant: 'destructive',
       });
     }

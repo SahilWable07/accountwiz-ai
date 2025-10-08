@@ -31,6 +31,22 @@ async function makeRequest<T>(
     headers,
   });
 
+  // Handle 404 for empty results gracefully
+  if (response.status === 404) {
+    const errorData = await response.json().catch(() => ({}));
+    // If it's a "not found" message, return empty data instead of throwing
+    if (errorData.message?.toLowerCase().includes('no transactions found')) {
+      return {
+        success: true,
+        status_code: 200,
+        message: 'No data found',
+        data: { transactions: [] } as T,
+        error: null,
+        meta: null,
+      };
+    }
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Request failed' }));
     throw new Error(error.message || error.detail || 'Request failed');
@@ -252,25 +268,40 @@ export const transactionApi = {
   downloadStatement: async (filter_type: string) => {
     const authData = getAuthData();
     const url = `/transactions/download_statement?filter_type=${filter_type}&user_id=${authData?.userId}&client_id=${authData?.clientId}`;
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      headers: {
-        'Authorization': `Bearer ${authData?.accessToken}`,
-      },
-    });
     
-    if (!response.ok) {
-      throw new Error('Failed to download statement');
+    try {
+      const response = await fetch(`${API_BASE_URL}${url}`, {
+        headers: {
+          'Authorization': `Bearer ${authData?.accessToken}`,
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to download statement');
+      }
+      
+      // Check if response is JSON (error) or blob (file)
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const jsonData = await response.json();
+        if (!jsonData.success) {
+          throw new Error(jsonData.message || 'Failed to download statement');
+        }
+        throw new Error('Statement download not available');
+      }
+      
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `statement_${filter_type}_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to download statement');
     }
-    
-    const blob = await response.blob();
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = `statement_${filter_type}_${new Date().toISOString().split('T')[0]}.pdf`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    window.URL.revokeObjectURL(downloadUrl);
   },
 
   getTotalBalance: async (period: string) => {

@@ -81,6 +81,9 @@ const Transactions = () => {
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
         setTransactions(sorted);
+      } else {
+        // If no transactions, set empty array
+        setTransactions([]);
       }
 
       if (accountRes.success && accountRes.data) {
@@ -89,6 +92,10 @@ const Transactions = () => {
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
+      // Don't show error for empty data
+      if (error instanceof Error && !error.message.includes('No data found')) {
+        setTransactions([]);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -189,9 +196,10 @@ const Transactions = () => {
         description: 'Statement downloaded successfully',
       });
     } catch (error) {
+      console.error('Download error:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to download statement',
+        title: 'Download Not Available',
+        description: 'Statement download is currently not available. Please contact support.',
         variant: 'destructive',
       });
     }
