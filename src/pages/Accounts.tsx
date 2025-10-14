@@ -172,15 +172,6 @@ const Accounts = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="accountNumber">Account Number (Optional)</Label>
-                  <Input
-                    id="accountNumber"
-                    placeholder="Enter account number"
-                    value={bankForm.account_number}
-                    onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="bankName">Bank Name</Label>
                   <Input
                     id="bankName"

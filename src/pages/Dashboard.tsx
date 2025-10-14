@@ -380,14 +380,14 @@ const Dashboard = () => {
                     )}
                     <span className="font-medium">{txn.description}</span>
                   </div>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(txn.created_at).toLocaleString()}
+                  </p>
                   {txn.gst_amount && txn.gst_amount > 0 && (
                     <p className="text-xs text-muted-foreground">
                       GST: ₹{txn.gst_amount.toLocaleString()}
                     </p>
                   )}
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(txn.created_at).toLocaleString()}
-                  </p>
                 </div>
                 <div className="text-right">
                   <span className={`text-xl font-bold ${txn.type === 'income' || txn.type === 'loan_receivable' ? 'text-accent' : 'text-destructive'}`}>
