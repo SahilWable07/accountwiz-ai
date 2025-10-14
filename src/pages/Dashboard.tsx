@@ -33,7 +33,7 @@ interface Account {
 interface Transaction {
   id: string;
   type: string;
-  amount: number;
+  amount: string | number;
   description: string;
   created_at: string;
   bank_account_id: string;
@@ -391,7 +391,7 @@ const Dashboard = () => {
                 </div>
                 <div className="text-right">
                   <span className={`text-xl font-bold ${txn.type === 'income' || txn.type === 'loan_receivable' ? 'text-accent' : 'text-destructive'}`}>
-                    {txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹{Number(txn.amount).toLocaleString()}
+                    {txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹{parseFloat(String(txn.amount)).toLocaleString('en-IN')}
                   </span>
                   {txn.gst_amount && txn.gst_amount > 0 && (
                     <p className="text-xs text-muted-foreground">(incl. GST)</p>
