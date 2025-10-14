@@ -30,6 +30,8 @@ interface Transaction {
   description: string;
   created_at: string;
   bank_account_id: string;
+  gst_amount?: number;
+  include_gst?: boolean;
 }
 
 interface Account {
@@ -334,8 +336,16 @@ const Transactions = () => {
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     {getTypeBadge(txn.type)}
+                    {txn.include_gst && (
+                      <Badge variant="outline" className="text-xs">GST</Badge>
+                    )}
                     <span className="font-medium">{txn.description}</span>
                   </div>
+                  {txn.gst_amount && txn.gst_amount > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      GST Amount: ₹{txn.gst_amount.toLocaleString()}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground">
                     {new Date(txn.created_at).toLocaleString()}
                   </p>
@@ -344,9 +354,14 @@ const Transactions = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <span className={`text-xl sm:text-2xl font-bold ${txn.type === 'income' || txn.type === 'loan_receivable' ? 'text-accent' : 'text-destructive'}`}>
-                    {txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹{Number(txn.amount).toLocaleString()}
-                  </span>
+                  <div className="text-right">
+                    <span className={`text-xl sm:text-2xl font-bold ${txn.type === 'income' || txn.type === 'loan_receivable' ? 'text-accent' : 'text-destructive'}`}>
+                      {txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹{Number(txn.amount).toLocaleString()}
+                    </span>
+                    {txn.gst_amount && txn.gst_amount > 0 && (
+                      <p className="text-xs text-muted-foreground">(incl. GST)</p>
+                    )}
+                  </div>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(txn)}>
                       <Edit className="h-4 w-4 text-primary" />

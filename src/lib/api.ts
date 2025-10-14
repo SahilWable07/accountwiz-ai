@@ -34,13 +34,17 @@ async function makeRequest<T>(
   // Handle 404 for empty results gracefully
   if (response.status === 404) {
     const errorData = await response.json().catch(() => ({}));
-    // If it's a "not found" message, return empty data instead of throwing
-    if (errorData.message?.toLowerCase().includes('no transactions found')) {
+    const errorMsg = errorData.message?.toLowerCase() || '';
+    // If it's a "not found" or "no data" message, return empty data instead of throwing
+    if (errorMsg.includes('no transactions found') || 
+        errorMsg.includes('not found') || 
+        errorMsg.includes('no data') ||
+        errorMsg.includes('no accounts found')) {
       return {
         success: true,
         status_code: 200,
         message: 'No data found',
-        data: { transactions: [] } as T,
+        data: (endpoint.includes('transactions') ? { transactions: [] } : []) as T,
         error: null,
         meta: null,
       };
@@ -104,7 +108,7 @@ export const authApi = {
 export const accountApi = {
   createBank: async (data: {
     account_name: string;
-    account_number: string;
+    account_number?: string;
     bank_name: string;
     balance: number;
   }) => {
@@ -112,8 +116,10 @@ export const accountApi = {
     return makeRequest('/accounts/bank', {
       method: 'POST',
       body: JSON.stringify({
-        ...data,
+        account_name: data.account_name,
+        bank_name: data.bank_name,
         account_type: 'bank',
+        balance: data.balance,
         client_id: authData?.clientId,
         user_id: authData?.userId,
         token: authData?.accessToken,

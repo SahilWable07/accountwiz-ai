@@ -37,6 +37,8 @@ interface Transaction {
   description: string;
   created_at: string;
   bank_account_id: string;
+  gst_amount?: number;
+  include_gst?: boolean;
 }
 
 const Dashboard = () => {
@@ -56,9 +58,9 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       const [balanceRes, accountsRes, transactionsRes] = await Promise.all([
-        transactionApi.getTotalBalance('this_month'),
-        accountApi.getAccounts(),
-        transactionApi.getHistory(filterType),
+        transactionApi.getTotalBalance('this_month').catch(() => ({ success: true, data: null })),
+        accountApi.getAccounts().catch(() => ({ success: true, data: [] })),
+        transactionApi.getHistory(filterType).catch(() => ({ success: true, data: { transactions: [] } })),
       ]);
 
       if (balanceRes.success && balanceRes.data) {
@@ -66,6 +68,8 @@ const Dashboard = () => {
         if (data.summary) {
           setBalance(data.summary);
         }
+      } else {
+        setBalance(null);
       }
 
       if (accountsRes.success && accountsRes.data) {
@@ -74,6 +78,8 @@ const Dashboard = () => {
         if (accountData.length > 0 && !selectedAccountId) {
           setSelectedAccountId(accountData[0].id);
         }
+      } else {
+        setAccounts([]);
       }
 
       if (transactionsRes.success && transactionsRes.data) {
@@ -85,19 +91,14 @@ const Dashboard = () => {
         );
         setLatestTransactions(sorted.slice(0, 5));
       } else {
-        // If no transactions, set empty array
         setLatestTransactions([]);
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
-      // Don't show error toast if it's just empty data
-      if (error instanceof Error && !error.message.includes('No data found')) {
-        toast({
-          title: 'Error',
-          description: 'Failed to load some dashboard data',
-          variant: 'destructive',
-        });
-      }
+      // Set empty defaults for new users
+      setBalance(null);
+      setAccounts([]);
+      setLatestTransactions([]);
     }
   };
 
@@ -372,17 +373,30 @@ const Dashboard = () => {
                 style={{ animationDelay: `${index * 0.1}s` }}
               >
                 <div className="space-y-1 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {getTypeBadge(txn.type)}
+                    {txn.include_gst && (
+                      <Badge variant="outline" className="text-xs">GST</Badge>
+                    )}
                     <span className="font-medium">{txn.description}</span>
                   </div>
+                  {txn.gst_amount && txn.gst_amount > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      GST: ₹{txn.gst_amount.toLocaleString()}
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground">
                     {new Date(txn.created_at).toLocaleString()}
                   </p>
                 </div>
-                <span className={`text-xl font-bold ${txn.type === 'income' || txn.type === 'loan_receivable' ? 'text-accent' : 'text-destructive'}`}>
-                  {txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹{Number(txn.amount).toLocaleString()}
-                </span>
+                <div className="text-right">
+                  <span className={`text-xl font-bold ${txn.type === 'income' || txn.type === 'loan_receivable' ? 'text-accent' : 'text-destructive'}`}>
+                    {txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹{Number(txn.amount).toLocaleString()}
+                  </span>
+                  {txn.gst_amount && txn.gst_amount > 0 && (
+                    <p className="text-xs text-muted-foreground">(incl. GST)</p>
+                  )}
+                </div>
               </div>
             ))}
             {latestTransactions.length === 0 && (

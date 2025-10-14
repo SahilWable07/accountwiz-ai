@@ -50,14 +50,14 @@ const Accounts = () => {
     try {
       const response = await accountApi.getAccounts();
       if (response.success) {
-        setAccounts(response.data as Account[]);
+        setAccounts(Array.isArray(response.data) ? response.data : []);
+      } else {
+        setAccounts([]);
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch accounts',
-        variant: 'destructive',
-      });
+      console.error('Error fetching accounts:', error);
+      setAccounts([]);
+      // Don't show error toast for empty accounts - this is normal for new users
     } finally {
       setIsLoading(false);
     }
@@ -172,13 +172,12 @@ const Accounts = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="accountNumber">Account Number</Label>
+                  <Label htmlFor="accountNumber">Account Number (Optional)</Label>
                   <Input
                     id="accountNumber"
                     placeholder="Enter account number"
                     value={bankForm.account_number}
                     onChange={(e) => setBankForm({ ...bankForm, account_number: e.target.value })}
-                    required
                   />
                 </div>
                 <div className="space-y-2">
