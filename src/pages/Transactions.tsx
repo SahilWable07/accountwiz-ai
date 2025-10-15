@@ -344,14 +344,6 @@ const Transactions = () => {
                   <p className="text-sm text-muted-foreground">
                     {new Date(txn.created_at).toLocaleString()}
                   </p>
-                  {txn.gst_amount && txn.gst_amount > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      GST Amount: ₹{txn.gst_amount.toLocaleString()}
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Account: {getAccountName(txn.bank_account_id)}
-                  </p>
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
