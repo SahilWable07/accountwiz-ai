@@ -78,6 +78,10 @@ const Transactions = () => {
       if (transactionRes.success && transactionRes.data) {
         const data = transactionRes.data as any;
         const txns = data?.transactions || [];
+        
+        // Debug: Log the raw transaction data from API
+        console.log('Raw transactions from API:', txns);
+        
         // Sort by created_at descending (latest first)
         const sorted = [...txns].sort((a: Transaction, b: Transaction) => 
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -348,7 +352,12 @@ const Transactions = () => {
                 <div className="flex items-center gap-4">
                   <div className="text-right">
                     <span className={`text-xl sm:text-2xl font-bold ${txn.type === 'income' || txn.type === 'loan_receivable' ? 'text-accent' : 'text-destructive'}`}>
-                      {txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹{parseFloat(String(txn.amount)).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 0 })}
+                      {(() => {
+                        console.log('Transaction amount:', txn.amount, 'Type:', typeof txn.amount);
+                        const numericAmount = parseFloat(String(txn.amount));
+                        console.log('Parsed amount:', numericAmount);
+                        return `${txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹${numericAmount.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 0 })}`;
+                      })()}
                     </span>
                     {txn.gst_amount && txn.gst_amount > 0 && (
                       <p className="text-xs text-muted-foreground">(incl. GST)</p>
