@@ -333,8 +333,8 @@ const Transactions = () => {
                 className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-lg border border-border p-4 hover:bg-muted/50 transition-all hover:shadow-md animate-scale-in"
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <div className="space-y-2 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
                     {getTypeBadge(txn.type)}
                     {txn.include_gst && (
                       <Badge variant="outline" className="text-xs">GST</Badge>
