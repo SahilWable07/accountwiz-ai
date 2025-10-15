@@ -359,9 +359,6 @@ const Transactions = () => {
                         return `${txn.type === 'income' || txn.type === 'loan_receivable' ? '+' : '-'}₹${numericAmount.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 0 })}`;
                       })()}
                     </span>
-                    {txn.gst_amount && txn.gst_amount > 0 && (
-                      <p className="text-xs text-muted-foreground">(incl. GST)</p>
-                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="icon" onClick={() => handleEdit(txn)}>
