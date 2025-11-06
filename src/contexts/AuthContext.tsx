@@ -36,11 +36,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Invalid token');
       }
 
+      const clientId = decoded.clients ? Object.keys(decoded.clients)[0] : '';
+
       const authData: AuthData = {
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
         userId: response.user.id,
-        clientId: decoded.client_ids,
+        clientId: clientId,
         user: response.user,
       };
 
@@ -72,11 +74,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Invalid token');
       }
 
+      const clientId = decoded.clients ? Object.keys(decoded.clients)[0] : '';
+
       const authData: AuthData = {
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
         userId: response.user.id,
-        clientId: decoded.client_ids,
+        clientId: clientId,
         user: response.user,
       };
 

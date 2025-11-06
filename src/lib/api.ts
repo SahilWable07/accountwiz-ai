@@ -1,6 +1,6 @@
 import { getAuthData } from './auth';
 
-const API_BASE_URL = 'http://15.206.128.35:8000/';
+const API_BASE_URL = 'http://15.206.128.35:8000';
 const AUTH_API_URL = 'https://dt1wp7hrm9.execute-api.ap-south-1.amazonaws.com/auth/api/auth';
 
 interface ApiResponse<T = any> {

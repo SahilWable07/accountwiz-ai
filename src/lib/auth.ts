@@ -1,6 +1,7 @@
 interface DecodedToken {
   user_id: string;
-  client_ids: string;
+  user_type: string;
+  clients: Record<string, string>;
   iat: number;
   exp: number;
 }
